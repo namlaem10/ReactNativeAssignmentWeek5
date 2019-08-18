@@ -13,7 +13,7 @@ export default class App extends React.Component {
       listArticles: [],
       totalResults: 0,
       page: 1,
-      hasMoreArticles: true,
+      hasMoreArticles: false,
       hasError: false,
       publishedList: false,
       inputText: '',
@@ -22,7 +22,7 @@ export default class App extends React.Component {
   }
   componentDidMount = async () => {
     const { page } = this.state;
-    this.setState({ isLoading: true });
+    this.setState({ isLoading: true, hasMoreArticles: true });
     this.callAPI(page);
   }
   callAPI = async page => {
@@ -32,11 +32,11 @@ export default class App extends React.Component {
       const responseJson = await response.json();
       if (responseJson.articles.length > 0) {
         this.setState({
-          page: page,
+          page: page + 1,
           isFreshing: false,
           isLoading: false,
           listArticles: listArticles.concat(responseJson.articles),
-          totalResults: responseJson.articles.length + totalResults
+          totalResults: totalResults + responseJson.articles.length
         });
       }
       else {
@@ -67,18 +67,20 @@ export default class App extends React.Component {
       this.callAPI(newpage)
     }, 2000);
   }
-  onEndReached = async () => {
-    const { page } = this.state;
-    const newPage = page + 1;
-    this.callAPI(newPage);
+  onEndReached = () => {
+    const { page, hasMoreArticles } = this.state;
+    if(hasMoreArticles == true)
+      this.callAPI(page);
+    else
+      console.log("End")
   }
   onChange = text => {
     this.setState({
       inputText: text
     });
   }
-  SearchFilterFunction = async () => {
-    const { inputText, listArticles, totalResults } = this.state;
+  SearchFilterFunction = () => {
+    const { inputText, listArticles } = this.state;
     const newData = listArticles.filter(function (item) {
       const itemData = item.title ? item.title.toUpperCase() : ''.toUpperCase();
       const textData = inputText.toUpperCase();
@@ -86,34 +88,32 @@ export default class App extends React.Component {
     });
     this.setState({
       listArticles: newData,
-      totalResult: newData.length,
-      hasMore: false,
+      totalResults: newData.length,
+      hasMoreArticles: false,
       searching: true,
       inputText: '',
     });
-    console.log(newData.length)
-    console.log(totalResults)
   }
   renderFooter = () => {
     const { isFreshing, hasMoreArticles, searching } = this.state;
-    if (isFreshing || (searching))
+    if (isFreshing || searching)
       return <ActivityIndicator size='large' color='black' animating={false} />
-    else {
-      if (hasMoreArticles)
-        return <ActivityIndicator size='large' color='black' animating={true} />
-      else
-        return (
-          <View>
-            <Text style={styles.noMoreText}>No More</Text>
-            <TouchableOpacity style={styles.buttonEnd} onPress={this.goIndex}>
-              <Text>
-                <AntDesign style={{ marginRight: 20 }} name='caretup' size={27} color="white" />
-              </Text>
-            </TouchableOpacity>
-          </View>
-        )
-    }
+    if (hasMoreArticles && !isFreshing && !searching)
+      return <ActivityIndicator size='large' color='black' animating={true} />
+    else
+      return (
+        <View>
+          <Text style={styles.noMoreText}>No More</Text>
+          <TouchableOpacity style={styles.buttonEnd} onPress={this.goIndex}>
+            <Text>
+              <AntDesign style={{ marginRight: 20 }} name='caretup' size={27} color="white" />
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )
   }
+
+
   goIndex = () => {
     this.flatListRef.scrollToIndex({ animated: true, index: 0 });
   };
@@ -165,7 +165,7 @@ export default class App extends React.Component {
             data={listArticles}
             renderItem={this.renderItem}
             onEndReached={this.onEndReached}
-            onEndReachedThreshold={0.9}
+            onEndReachedThreshold={0.1}
             ListFooterComponent={this.renderFooter()}
             onRefresh={this.onRefresh}
             refreshing={isFreshing}
@@ -232,7 +232,7 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     paddingVertical: 6,
     marginBottom: 5,
-    marginLeft: 5, 
+    marginLeft: 5,
     marginRight: 2
   },
   buttonPublish: {
